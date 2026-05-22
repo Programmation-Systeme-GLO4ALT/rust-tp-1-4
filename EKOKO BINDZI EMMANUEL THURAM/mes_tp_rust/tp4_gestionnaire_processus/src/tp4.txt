@@ -1,0 +1,153 @@
+#[derive(Debug, Clone, PartialEq)]
+enum EtatProcessus {
+    Pret,
+    EnExecution,
+    Termine,
+}
+
+#[derive(Debug, Clone)]
+struct Processus {
+    pid: u32,
+    nom: String,
+    etat: EtatProcessus,
+    memoire_ko: u64,
+}
+
+#[derive(Debug)]
+struct GestionnaireProcessus {
+    processus: Vec<Processus>,
+    prochain_pid: u32,
+}
+
+impl GestionnaireProcessus {
+    fn nouveau() -> Self {
+        GestionnaireProcessus {
+            processus: Vec::new(),
+            prochain_pid: 1,
+        }
+    }
+    
+    fn creer_processus(&mut self, nom: String, memoire_ko: u64) -> u32 {
+        let pid = self.prochain_pid;
+        self.prochain_pid += 1;
+        
+        let processus = Processus {
+            pid,
+            nom,
+            etat: EtatProcessus::Pret,
+            memoire_ko,
+        };
+        
+        self.processus.push(processus);
+        pid
+    }
+    
+    fn trouver(&self, pid: u32) -> Option<&Processus> {
+        for p in &self.processus {
+            if p.pid == pid {
+                return Some(p);
+            }
+        }
+        None
+    }
+    
+    fn trouver_mut(&mut self, pid: u32) -> Option<&mut Processus> {
+        for p in &mut self.processus {
+            if p.pid == pid {
+                return Some(p);
+            }
+        }
+        None
+    }
+    
+    fn changer_etat(&mut self, pid: u32, nouvel_etat: EtatProcessus) -> Result<(), String> {
+        match self.trouver_mut(pid) {
+            Some(p) => {
+                p.etat = nouvel_etat;
+                Ok(())
+            }
+            None => Err(format!("Processus avec PID {} non trouvé", pid)),
+        }
+    }
+    
+    fn memoire_totale(&self) -> u64 {
+        let mut total = 0;
+        for p in &self.processus {
+            total += p.memoire_ko;
+        }
+        total
+    }
+    
+    fn afficher(&self) {
+        println!("\n╔════════════════════════════════════════╗");
+        println!("║     GESTIONNAIRE DE PROCESSUS         ║");
+        println!("╚════════════════════════════════════════╝");
+        println!("Nombre de processus : {}", self.processus.len());
+        println!("Mémoire totale : {} Ko", self.memoire_totale());
+        println!("\nListe des processus :");
+        println!("{:-<50}", "");
+        
+        for p in &self.processus {
+            let etat_str = match p.etat {
+                EtatProcessus::Pret => "Prêt",
+                EtatProcessus::EnExecution => "En exécution",
+                EtatProcessus::Termine => "Terminé",
+            };
+            println!("│ PID: {:3} │ {:<15} │ {:12} │ {:>6} Ko │", 
+                     p.pid, p.nom, etat_str, p.memoire_ko);
+        }
+        println!("{:-<50}", "");
+    }
+}
+
+fn main() {
+    let mut gp = GestionnaireProcessus::nouveau();
+    
+    println!("=== Création des processus système ===");
+    
+    let init = gp.creer_processus(String::from("init"), 1024);
+    println!("✅ Créé init (PID: {}) - Mémoire: 1024 Ko", init);
+    
+    let bash = gp.creer_processus(String::from("bash"), 4096);
+    println!("✅ Créé bash (PID: {}) - Mémoire: 4096 Ko", bash);
+    
+    let firefox = gp.creer_processus(String::from("firefox"), 102400);
+    println!("✅ Créé firefox (PID: {}) - Mémoire: 102400 Ko", firefox);
+    
+    let vscode = gp.creer_processus(String::from("vscode"), 204800);
+    println!("✅ Créé vscode (PID: {}) - Mémoire: 204800 Ko", vscode);
+    
+    gp.afficher();
+    
+    println!("\n=== Changement d'état des processus ===");
+    
+    match gp.changer_etat(bash, EtatProcessus::EnExecution) {
+        Ok(_) => println!("✅ bash est maintenant en exécution"),
+        Err(e) => println!("❌ Erreur: {}", e),
+    }
+    
+    match gp.changer_etat(firefox, EtatProcessus::EnExecution) {
+        Ok(_) => println!("✅ firefox est maintenant en exécution"),
+        Err(e) => println!("❌ Erreur: {}", e),
+    }
+    
+    gp.afficher();
+    
+    println!("\n=== Recherche d'un processus ===");
+    match gp.trouver(firefox) {
+        Some(p) => println!("✅ Processus trouvé : {} (PID: {})", p.nom, p.pid),
+        None => println!("❌ Processus non trouvé"),
+    }
+    
+    match gp.trouver(999) {
+        Some(p) => println!("✅ Processus trouvé : {}", p.nom),
+        None => println!("❌ Processus avec PID 999 non trouvé"),
+    }
+    
+    println!("\n=== Mémoire totale utilisée ===");
+    println!("📊 Total : {} Ko ({} Mo)", 
+             gp.memoire_totale(), 
+             gp.memoire_totale() / 1024);
+    
+    println!("\n✅ TP4 terminé !");
+}
